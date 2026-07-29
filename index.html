@@ -218,6 +218,9 @@
         const board = document.getElementById('game-board');
         const notif = document.getElementById('notification');
         const pauseBtn = document.getElementById('btn-pause-game');
+        
+        // Elemen Musik Latar
+        const bgMusic = document.getElementById('bg-music');
 
         function setDifficulty(diff) {
             difficulty = diff;
@@ -237,6 +240,12 @@
             pauseBtn.innerText = "Pause Game";
             resetScores();
             setupLevel();
+            
+            // Memutar musik otomatis saat permainan dimulai
+            if (bgMusic) {
+                bgMusic.play();
+            }
+
             showNotification(`Mode: ${mode === 'P1_VS_COM' ? 'Lawan Komputer' : '2 Pemain'} Dimulai!`);
         }
 
@@ -403,19 +412,35 @@
                         clearInterval(timerInterval);
                         showNotification("Waktu Habis! Game Over.");
                         lockBoard = true;
+                        
+                        // Berhentikan musik saat Game Over
+                        if (bgMusic) bgMusic.pause();
                     }
                 }
             }, 1000);
         }
 
+        // FUNGSI UNTUK MENGONTROL PAUSE GAME & MUSIK
         function togglePauseGame() {
             isGamePaused = !isGamePaused;
+
             if (isGamePaused) {
                 pauseBtn.innerText = "Lanjutkan Game";
                 showNotification("Game Di-pause!");
+                
+                // Menghentikan musik saat game di-pause
+                if (bgMusic) {
+                    bgMusic.pause();
+                }
             } else {
                 pauseBtn.innerText = "Pause Game";
                 showNotification("Game Dilanjutkan!");
+                
+                // Memutar kembali musik saat game dilanjutkan
+                if (bgMusic) {
+                    bgMusic.play();
+                }
+
                 if (gameMode === 'P1_VS_COM' && currentPlayer === 2) {
                     setTimeout(aiTurn, 1000);
                 }
