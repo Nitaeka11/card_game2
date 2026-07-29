@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Card Game - Proyek GitHub (Dengan Level)</title>
+    <style>
+        /* --- GAYA DASAR & LATAR BELAKANG --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            color: #fff;
+            background: url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop') no-repeat center center fixed;
+            background-size: cover;
+            margin: 0;
+            padding: 20px;
+        }
+
+        #ui-container {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        /* --- TOMBOL --- */
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s, transform 0.1s;
+        }
+        button:hover { background: #45a049; }
+        button:active { transform: scale(0.95); }
+        
+        .btn-diff { background: #2196F3; }
+        .btn-diff:hover { background: #1976D2; }
+        .btn-diff.active { background: #FF9800; border: 2px solid #fff;}
+
+        /* --- PAPAN GAME & KARTU --- */
+        #game-board {
+            display: grid;
+            /* Grid default, akan diubah oleh JS berdasarkan kesulitan */
+            grid-template-columns: repeat(4, 100px); 
+            gap: 15px;
+            justify-content: center;
+            perspective: 1000px;
+            margin-top: 10px;
+        }
+
+        .card {
+            width: 100px;
+            height: 140px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+
+        .card-front {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+        }
+
+        .card-back {
+            background: #fff;
+            color: #333;
+            transform: rotateY(180deg);
+        }
+
+        /* --- NOTIFIKASI --- */
+        #notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ff9800;
+            padding: 15px 30px;
+            border-radius: 5px;
+            font-weight: bold;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        /* Styling teks status */
+        .status-text { margin: 8px 0; font-size: 16px; }
+        .divider { border-top: 1px solid rgba(255,255,255,0.2); margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+    <div id="notification">Pesan Notifikasi!</div>
+
+    <div id="ui-container">
+        <h1 style="margin-top: 5px;">Memory Game Pro</h1>
+        
+        <div>
+            <strong style="display:block; margin-bottom: 5px;">1. Pilih Kesulitan:</strong>
+            <button id="btn-mudah" class="btn-diff active" onclick="setDifficulty('mudah')">Mudah</button>
+            <button id="btn-sedang" class="btn-diff" onclick="setDifficulty('sedang')">Sedang</button>
+            <button id="btn-sulit" class="btn-diff" onclick="setDifficulty('sulit')">Sulit</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div>
+            <strong style="display:block; margin-bottom: 5px;">2. Mulai Game:</strong>
+            <button onclick="startGame('P1_VS_COM')">Lawan Komputer</button>
+            <button onclick="startGame('P1_VS_P2')">2 Pemain</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <p class="status-text">
+            <strong>Kesulitan:</strong> <span id="diff-label" style="color: #FF9800;">Mudah</span> | 
+            <strong>Level:</strong> <span id="level">1</span> | 
+            <strong>Waktu:</strong> <span id="time">60</span> detik
+        </p>
+        <p class="status-text">
+            <strong>Giliran:</strong> <span id="turn-indicator" style="color:#4CAF50;">Pemain 1</span>
+        </p>
+        <p class="status-text">
+            Skor P1: <span id="score1">0</span> | Skor Lawan: <span id="score2">0</span>
+        </p>
+    </div>
+
+    <div id="game-board"></div>
+
+    <script>
+        // --- PENGATURAN GAME & VARIABEL ---
+        // Menambahkan lebih banyak simbol untuk mengakomodasi level "Sulit"
+        const allSymbols = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐯', '🦁', '🐮', '🐷']; 
+        let activeSymbols = [];
+        
+        let firstCard, secondCard;
+        let lockBoard = false;
+        let gameMode = 'P1_VS_COM';
+        let difficulty = 'mudah'; // Default kesulitan
+        
+        let currentPlayer = 1;
+        let score1 = 0, score2 = 0;
+        let matchedPairs = 0;
+        
+        let level = 1;
+        let timeLeft = 60;
+        let timerInterval;
+
+        const board = document.getElementById('game-board');
+        const notif = document.getElementById('notification');
+
+        // --- SISTEM KESULITAN ---
+        function setDifficulty(diff) {
+            difficulty = diff;
+            
+            // Update UI Button
+            document.querySelectorAll('.btn-diff').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${diff}`).classList.add('active');
+            
+            // Update Label
+            const labelStr = diff.charAt(0).toUpperCase() + diff.slice(1);
+            document.getElementById('diff-label').innerText = labelStr;
+            
+            showNotification(`Kesulitan diubah ke: ${labelStr}`);
+        }
+
+        // --- INISIALISASI GAME ---
+        function startGame(mode) {
+            gameMode = mode;
+            level = 1;
+            resetScores();
+            setupLevel();
+            showNotification(`Mode: ${mode === 'P1_VS_COM' ? 'Lawan Komputer' : '2 Pemain'} Dimulai!`);
+        }
+
+        function setupLevel() {
+            board.innerHTML = '';
+            matchedPairs = 0;
+            currentPlayer = 1;
+            updateTurnIndicator();
+            
+            // Atur jumlah kartu dan waktu berdasarkan kesulitan
+            if (difficulty === 'mudah') {
+                activeSymbols = allSymbols.slice(0, 6); // 6 Pasang (12 Kartu)
+                board.style.gridTemplateColumns = 'repeat(4, 100px)'; // 4 Kolom x 3 Baris
+                timeLeft = 60 - (level * 2);
+            } else if (difficulty === 'sedang') {
+                activeSymbols = allSymbols.slice(0, 8); // 8 Pasang (16 Kartu)
+                board.style.gridTemplateColumns = 'repeat(4, 100px)'; // 4 Kolom x 4 Baris
+                timeLeft = 75 - (level * 3);
+            } else if (difficulty === 'sulit') {
+                activeSymbols = allSymbols.slice(0, 12); // 12 Pasang (24 Kartu)
+                board.style.gridTemplateColumns = 'repeat(6, 100px)'; // 6 Kolom x 4 Baris
+                timeLeft = 90 - (level * 5);
+            }
+
+            // Persiapkan deck
+            let deck = [...activeSymbols, ...activeSymbols];
+            deck.sort(() => 0.5 - Math.random()); // Acak kartu
+
+            deck.forEach(symbol => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.symbol = symbol;
+                
+                card.innerHTML = `
+                    <div class="card-face card-front">❓</div>
+                    <div class="card-face card-back">${symbol}</div>
+                `;
+                
+                card.addEventListener('click', flipCard);
+                board.appendChild(card);
+            });
+
+            startTimer();
+        }
+
+        // --- LOGIKA FLIP KARTU ---
+        function flipCard() {
+            if (lockBoard) return;
+            if (this === firstCard) return;
+
+            this.classList.add('flipped');
+
+            if (!firstCard) {
+                firstCard = this;
+                return;
+            }
+
+            secondCard = this;
+            checkForMatch();
+        }
+
+        function checkForMatch() {
+            let isMatch = firstCard.dataset.symbol === secondCard.dataset.symbol;
+
+            if (isMatch) {
+                disableCards();
+                updateScore();
+            } else {
+                unflipCards();
+            }
+        }
+
+        function disableCards() {
+            firstCard.removeEventListener('click', flipCard);
+            secondCard.removeEventListener('click', flipCard);
+            matchedPairs++;
+            
+            resetBoard();
+
+            if (matchedPairs === activeSymbols.length) {
+                levelComplete();
+            } else if (gameMode === 'P1_VS_COM' && currentPlayer === 2) {
+                setTimeout(aiTurn, 1000); // AI lanjut main jika benar
+            }
+        }
+
+        function unflipCards() {
+            lockBoard = true;
+            setTimeout(() => {
+                firstCard.classList.remove('flipped');
+                secondCard.classList.remove('flipped');
+                resetBoard();
+                switchTurn();
+            }, 1000);
+        }
+
+        function resetBoard() {
+            [firstCard, secondCard] = [null, null];
+            lockBoard = false;
+        }
+
+        // --- SISTEM GILIRAN & AI KOMPUTER ---
+        function switchTurn() {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            updateTurnIndicator();
+
+            if (gameMode === 'P1_VS_COM' && currentPlayer === 2) {
+                setTimeout(aiTurn, 1000);
+            }
+        }
+
+        function updateTurnIndicator() {
+            const indicator = document.getElementById('turn-indicator');
+            indicator.innerText = currentPlayer === 1 ? "Pemain 1" : (gameMode === 'P1_VS_COM' ? "Komputer" : "Pemain 2");
+            indicator.style.color = currentPlayer === 1 ? "#4CAF50" : "#f44336";
+        }
+
+        function aiTurn() {
+            if (currentPlayer !== 2 || matchedPairs === activeSymbols.length) return;
+
+            let unflipped = Array.from(document.querySelectorAll('.card:not(.flipped)'));
+            if (unflipped.length < 2) return;
+
+            // Pilih kartu pertama
+            let idx1 = Math.floor(Math.random() * unflipped.length);
+            let aiCard1 = unflipped[idx1];
+            aiCard1.click();
+
+            // Pilih kartu kedua
+            setTimeout(() => {
+                unflipped = Array.from(document.querySelectorAll('.card:not(.flipped)'));
+                if (unflipped.length === 0) return;
+                let idx2 = Math.floor(Math.random() * unflipped.length);
+                let aiCard2 = unflipped[idx2];
+                aiCard2.click();
+            }, 600);
+        }
+
+        // --- SKOR, LEVEL & WAKTU ---
+        function updateScore() {
+            if (currentPlayer === 1) {
+                score1 += 10;
+                document.getElementById('score1').innerText = score1;
+            } else {
+                score2 += 10;
+                document.getElementById('score2').innerText = score2;
+            }
+            showNotification(`+10 Poin untuk ${currentPlayer === 1 ? 'Pemain 1' : (gameMode === 'P1_VS_COM' ? 'Komputer' : 'Pemain 2')}!`);
+        }
+
+        function resetScores() {
+            score1 = 0; score2 = 0;
+            document.getElementById('score1').innerText = score1;
+            document.getElementById('score2').innerText = score2;
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            
+            // Pastikan waktu tidak kurang dari 15 detik pada level yang sangat tinggi
+            if(timeLeft < 15) timeLeft = 15; 
+            
+            document.getElementById('time').innerText = timeLeft;
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('time').innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    showNotification("Waktu Habis! Game Over.");
+                    lockBoard = true;
+                }
+            }, 1000);
+        }
+
+        function levelComplete() {
+            clearInterval(timerInterval);
+            showNotification(`Level ${level} Selesai! Memuat level berikutnya...`);
+            level++;
+            document.getElementById('level').innerText = level;
+            setTimeout(setupLevel, 2500);
+        }
+
+        function showNotification(msg) {
+            notif.innerText = msg;
+            notif.style.display = 'block';
+            setTimeout(() => { notif.style.display = 'none'; }, 2000);
+        }
+    </script>
+</body>
+</html>
