@@ -3,26 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Memory Card Game - Proyek GitHub (Dengan Level)</title>
+    <title>Memory Card Game - SMKN 1 Sanden (RPL)</title>
     <style>
         /* --- GAYA DASAR & LATAR BELAKANG --- */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             text-align: center;
             color: #fff;
-            background: url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop') no-repeat center center fixed;
+            /* Latar belakang menggunakan gambar onesand.jpg dari GitHub */
+            background: url('https://raw.githubusercontent.com/Nitaeka11/card_game2/48b47215d1001dd77e8318c599f08b5a4b5ea0dd/onesand.jpg') no-repeat center center fixed;
             background-size: cover;
             margin: 0;
             padding: 20px;
         }
 
         #ui-container {
-            background: rgba(0, 0, 0, 0.8);
-            padding: 15px;
-            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 12px;
             display: inline-block;
             margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            max-width: 600px;
+        }
+
+        /* --- STYLING LOGO SEKOLAH & JURUSAN --- */
+        .school-logos {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .school-logos img {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px;
+            border: 2px solid #2196F3;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
         }
 
         /* --- TOMBOL --- */
@@ -47,7 +69,6 @@
         /* --- PAPAN GAME & KARTU --- */
         #game-board {
             display: grid;
-            /* Grid default, akan diubah oleh JS berdasarkan kesulitan */
             grid-template-columns: repeat(4, 100px); 
             gap: 15px;
             justify-content: center;
@@ -99,6 +120,7 @@
             left: 50%;
             transform: translateX(-50%);
             background: #ff9800;
+            color: #000;
             padding: 15px 30px;
             border-radius: 5px;
             font-weight: bold;
@@ -107,7 +129,6 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        /* Styling teks status */
         .status-text { margin: 8px 0; font-size: 16px; }
         .divider { border-top: 1px solid rgba(255,255,255,0.2); margin: 10px 0; }
     </style>
@@ -117,7 +138,13 @@
     <div id="notification">Pesan Notifikasi!</div>
 
     <div id="ui-container">
-        <h1 style="margin-top: 5px;">Memory Game Pro</h1>
+        <div class="school-logos">
+            <img src="https://raw.githubusercontent.com/Nitaeka11/card_game2/48b47215d1001dd77e8318c599f08b5a4b5ea0dd/smk.jpg" alt="Logo SMK N 1 Sanden" title="SMKN 1 Sanden">
+            <img src="https://raw.githubusercontent.com/Nitaeka11/card_game2/48b47215d1001dd77e8318c599f08b5a4b5ea0dd/rpll.jpg" alt="Logo Jurusan RPL" title="Rekayasa Perangkat Lunak">
+            <img src="https://raw.githubusercontent.com/Nitaeka11/card_game2/48b47215d1001dd77e8318c599f08b5a4b5ea0dd/bpk.jpg" alt="Logo Moko" title="Moko Game Projects">
+        </div>
+
+        <h1 style="margin-top: 5px; font-size: 24px;">Memory Game Pro - SMKN 1 Sanden</h1>
         
         <div>
             <strong style="display:block; margin-bottom: 5px;">1. Pilih Kesulitan:</strong>
@@ -152,15 +179,13 @@
     <div id="game-board"></div>
 
     <script>
-        // --- PENGATURAN GAME & VARIABEL ---
-        // Menambahkan lebih banyak simbol untuk mengakomodasi level "Sulit"
         const allSymbols = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐯', '🦁', '🐮', '🐷']; 
         let activeSymbols = [];
         
         let firstCard, secondCard;
         let lockBoard = false;
         let gameMode = 'P1_VS_COM';
-        let difficulty = 'mudah'; // Default kesulitan
+        let difficulty = 'mudah'; 
         
         let currentPlayer = 1;
         let score1 = 0, score2 = 0;
@@ -173,22 +198,17 @@
         const board = document.getElementById('game-board');
         const notif = document.getElementById('notification');
 
-        // --- SISTEM KESULITAN ---
         function setDifficulty(diff) {
             difficulty = diff;
-            
-            // Update UI Button
             document.querySelectorAll('.btn-diff').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`btn-${diff}`).classList.add('active');
             
-            // Update Label
             const labelStr = diff.charAt(0).toUpperCase() + diff.slice(1);
             document.getElementById('diff-label').innerText = labelStr;
             
             showNotification(`Kesulitan diubah ke: ${labelStr}`);
         }
 
-        // --- INISIALISASI GAME ---
         function startGame(mode) {
             gameMode = mode;
             level = 1;
@@ -203,24 +223,22 @@
             currentPlayer = 1;
             updateTurnIndicator();
             
-            // Atur jumlah kartu dan waktu berdasarkan kesulitan
             if (difficulty === 'mudah') {
-                activeSymbols = allSymbols.slice(0, 6); // 6 Pasang (12 Kartu)
-                board.style.gridTemplateColumns = 'repeat(4, 100px)'; // 4 Kolom x 3 Baris
+                activeSymbols = allSymbols.slice(0, 6); 
+                board.style.gridTemplateColumns = 'repeat(4, 100px)'; 
                 timeLeft = 60 - (level * 2);
             } else if (difficulty === 'sedang') {
-                activeSymbols = allSymbols.slice(0, 8); // 8 Pasang (16 Kartu)
-                board.style.gridTemplateColumns = 'repeat(4, 100px)'; // 4 Kolom x 4 Baris
+                activeSymbols = allSymbols.slice(0, 8); 
+                board.style.gridTemplateColumns = 'repeat(4, 100px)'; 
                 timeLeft = 75 - (level * 3);
             } else if (difficulty === 'sulit') {
-                activeSymbols = allSymbols.slice(0, 12); // 12 Pasang (24 Kartu)
-                board.style.gridTemplateColumns = 'repeat(6, 100px)'; // 6 Kolom x 4 Baris
+                activeSymbols = allSymbols.slice(0, 12); 
+                board.style.gridTemplateColumns = 'repeat(6, 100px)'; 
                 timeLeft = 90 - (level * 5);
             }
 
-            // Persiapkan deck
             let deck = [...activeSymbols, ...activeSymbols];
-            deck.sort(() => 0.5 - Math.random()); // Acak kartu
+            deck.sort(() => 0.5 - Math.random()); 
 
             deck.forEach(symbol => {
                 const card = document.createElement('div');
@@ -239,7 +257,6 @@
             startTimer();
         }
 
-        // --- LOGIKA FLIP KARTU ---
         function flipCard() {
             if (lockBoard) return;
             if (this === firstCard) return;
@@ -276,7 +293,7 @@
             if (matchedPairs === activeSymbols.length) {
                 levelComplete();
             } else if (gameMode === 'P1_VS_COM' && currentPlayer === 2) {
-                setTimeout(aiTurn, 1000); // AI lanjut main jika benar
+                setTimeout(aiTurn, 1000); 
             }
         }
 
@@ -295,7 +312,6 @@
             lockBoard = false;
         }
 
-        // --- SISTEM GILIRAN & AI KOMPUTER ---
         function switchTurn() {
             currentPlayer = currentPlayer === 1 ? 2 : 1;
             updateTurnIndicator();
@@ -317,12 +333,10 @@
             let unflipped = Array.from(document.querySelectorAll('.card:not(.flipped)'));
             if (unflipped.length < 2) return;
 
-            // Pilih kartu pertama
             let idx1 = Math.floor(Math.random() * unflipped.length);
             let aiCard1 = unflipped[idx1];
             aiCard1.click();
 
-            // Pilih kartu kedua
             setTimeout(() => {
                 unflipped = Array.from(document.querySelectorAll('.card:not(.flipped)'));
                 if (unflipped.length === 0) return;
@@ -332,7 +346,6 @@
             }, 600);
         }
 
-        // --- SKOR, LEVEL & WAKTU ---
         function updateScore() {
             if (currentPlayer === 1) {
                 score1 += 10;
@@ -352,8 +365,6 @@
 
         function startTimer() {
             clearInterval(timerInterval);
-            
-            // Pastikan waktu tidak kurang dari 15 detik pada level yang sangat tinggi
             if(timeLeft < 15) timeLeft = 15; 
             
             document.getElementById('time').innerText = timeLeft;
