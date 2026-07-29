@@ -272,6 +272,7 @@
             currentPlayer = 1;
             isGamePaused = false;
             pauseBtn.innerText = "Pause Game";
+            resetBoard();
             updateTurnIndicator();
             
             if (difficulty === 'mudah') {
@@ -446,6 +447,16 @@
                         clearInterval(timerInterval);
                         showNotification("Waktu Habis! Game Over.");
                         lockBoard = true;
+                        
+                        // PERBAIKAN: Tutup otomatis kartu yang terbuka saat Game Over
+                        document.querySelectorAll('.card.flipped').forEach(card => {
+                            // Jangan tutup kartu yang sudah cocok
+                            if (card.getAttribute('style') === null || !card.getAttribute('style').includes('pointer-events')) {
+                                card.classList.remove('flipped');
+                            }
+                        });
+                        resetBoard();
+
                         if (bgMusic) bgMusic.pause();
                     }
                 }
