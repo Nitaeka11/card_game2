@@ -66,6 +66,16 @@
         .btn-diff:hover { background: #1976D2; }
         .btn-diff.active { background: #FF9800; border: 2px solid #fff;}
 
+        .btn-pause { background: #e91e63; }
+        .btn-pause:hover { background: #c2185b; }
+
+        .audio-container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
         /* --- PAPAN GAME & KARTU --- */
         #game-board {
             display: grid;
@@ -146,6 +156,14 @@
 
         <h1 style="margin-top: 5px; font-size: 24px;">Memory Game Pro - SMKN 1 Sanden</h1>
         
+        <div class="audio-container">
+            <strong style="display:block; margin-bottom: 5px;">🎵 Musik Latar Belakang:</strong>
+            <audio id="bg-music" loop style="width: 100%; max-width: 300px;" controls>
+                <source src="mixkit-tears-of-joy-839.mp3" type="audio/mpeg">
+                Browser Anda tidak mendukung elemen audio.
+            </audio>
+        </div>
+
         <div>
             <strong style="display:block; margin-bottom: 5px;">1. Pilih Kesulitan:</strong>
             <button id="btn-mudah" class="btn-diff active" onclick="setDifficulty('mudah')">Mudah</button>
@@ -156,9 +174,10 @@
         <div class="divider"></div>
 
         <div>
-            <strong style="display:block; margin-bottom: 5px;">2. Mulai Game:</strong>
+            <strong style="display:block; margin-bottom: 5px;">2. Mulai & Kontrol Game:</strong>
             <button onclick="startGame('P1_VS_COM')">Lawan Komputer</button>
             <button onclick="startGame('P1_VS_P2')">2 Pemain</button>
+            <button id="btn-pause-game" class="btn-pause" onclick="togglePauseGame()">Pause Game</button>
         </div>
 
         <div class="divider"></div>
@@ -184,6 +203,7 @@
         
         let firstCard, secondCard;
         let lockBoard = false;
+        let isGamePaused = false;
         let gameMode = 'P1_VS_COM';
         let difficulty = 'mudah'; 
         
@@ -197,6 +217,7 @@
 
         const board = document.getElementById('game-board');
         const notif = document.getElementById('notification');
+        const pauseBtn = document.getElementById('btn-pause-game');
 
         function setDifficulty(diff) {
             difficulty = diff;
@@ -212,6 +233,8 @@
         function startGame(mode) {
             gameMode = mode;
             level = 1;
+            isGamePaused = false;
+            pauseBtn.innerText = "Pause Game";
             resetScores();
             setupLevel();
             showNotification(`Mode: ${mode === 'P1_VS_COM' ? 'Lawan Komputer' : '2 Pemain'} Dimulai!`);
@@ -221,6 +244,8 @@
             board.innerHTML = '';
             matchedPairs = 0;
             currentPlayer = 1;
+            isGamePaused = false;
+            pauseBtn.innerText = "Pause Game";
             updateTurnIndicator();
             
             if (difficulty === 'mudah') {
@@ -258,7 +283,7 @@
         }
 
         function flipCard() {
-            if (lockBoard) return;
+            if (lockBoard || isGamePaused) return;
             if (this === firstCard) return;
 
             this.classList.add('flipped');
@@ -292,7 +317,7 @@
 
             if (matchedPairs === activeSymbols.length) {
                 levelComplete();
-            } else if (gameMode === 'P1_VS_COM' && currentPlayer === 2) {
+            } else if (gameMode === 'P1_VS_COM' && currentPlayer === 2 && !isGamePaused) {
                 setTimeout(aiTurn, 1000); 
             }
         }
@@ -300,8 +325,8 @@
         function unflipCards() {
             lockBoard = true;
             setTimeout(() => {
-                firstCard.classList.remove('flipped');
-                secondCard.classList.remove('flipped');
+                if(firstCard) firstCard.classList.remove('flipped');
+                if(secondCard) secondCard.classList.remove('flipped');
                 resetBoard();
                 switchTurn();
             }, 1000);
@@ -316,7 +341,7 @@
             currentPlayer = currentPlayer === 1 ? 2 : 1;
             updateTurnIndicator();
 
-            if (gameMode === 'P1_VS_COM' && currentPlayer === 2) {
+            if (gameMode === 'P1_VS_COM' && currentPlayer === 2 && !isGamePaused) {
                 setTimeout(aiTurn, 1000);
             }
         }
@@ -328,7 +353,7 @@
         }
 
         function aiTurn() {
-            if (currentPlayer !== 2 || matchedPairs === activeSymbols.length) return;
+            if (currentPlayer !== 2 || matchedPairs === activeSymbols.length || isGamePaused) return;
 
             let unflipped = Array.from(document.querySelectorAll('.card:not(.flipped)'));
             if (unflipped.length < 2) return;
@@ -338,6 +363,7 @@
             aiCard1.click();
 
             setTimeout(() => {
+                if (isGamePaused) return;
                 unflipped = Array.from(document.querySelectorAll('.card:not(.flipped)'));
                 if (unflipped.length === 0) return;
                 let idx2 = Math.floor(Math.random() * unflipped.length);
@@ -370,14 +396,30 @@
             document.getElementById('time').innerText = timeLeft;
 
             timerInterval = setInterval(() => {
-                timeLeft--;
-                document.getElementById('time').innerText = timeLeft;
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    showNotification("Waktu Habis! Game Over.");
-                    lockBoard = true;
+                if (!isGamePaused) {
+                    timeLeft--;
+                    document.getElementById('time').innerText = timeLeft;
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        showNotification("Waktu Habis! Game Over.");
+                        lockBoard = true;
+                    }
                 }
             }, 1000);
+        }
+
+        function togglePauseGame() {
+            isGamePaused = !isGamePaused;
+            if (isGamePaused) {
+                pauseBtn.innerText = "Lanjutkan Game";
+                showNotification("Game Di-pause!");
+            } else {
+                pauseBtn.innerText = "Pause Game";
+                showNotification("Game Dilanjutkan!");
+                if (gameMode === 'P1_VS_COM' && currentPlayer === 2) {
+                    setTimeout(aiTurn, 1000);
+                }
+            }
         }
 
         function levelComplete() {
