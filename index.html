@@ -12,7 +12,6 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             text-align: center;
             color: #fff;
-            /* Latar belakang menggunakan gambar onesand.jpg dari GitHub */
             background: url('https://raw.githubusercontent.com/Nitaeka11/card_game2/48b47215d1001dd77e8318c599f08b5a4b5ea0dd/onesand.jpg') no-repeat center center fixed;
             background-size: cover;
             margin: 0;
@@ -152,6 +151,14 @@
 
     <div id="notification">Pesan Notifikasi!</div>
 
+    <div id="game-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2000; align-items:center; justify-content:center;">
+        <div style="background:#1e3c72; padding:30px; border-radius:15px; border:2px solid #FFD700; max-width:350px; width:80%; text-align:center; box-shadow:0 0 25px rgba(0,0,0,0.8);">
+            <h2 id="modal-title" style="margin-top:0; color:#FFD700; font-size:24px;">Level Selesai! 🎉</h2>
+            <p id="modal-message" style="font-size:16px; margin:20px 0; line-height:1.4;">Skor kamu: 0</p>
+            <button onclick="closeModal()" style="background:#FF9800; padding:10px 25px; font-size:16px; width:100%;">Lanjutkan 🚀</button>
+        </div>
+    </div>
+
     <div id="ui-container">
         <div class="school-logos">
             <img src="https://raw.githubusercontent.com/Nitaeka11/card_game2/48b47215d1001dd77e8318c599f08b5a4b5ea0dd/smk.jpg" alt="Logo SMK N 1 Sanden" title="SMKN 1 Sanden">
@@ -167,6 +174,9 @@
                 <source src="mixkit-tears-of-joy-839.mp3" type="audio/mpeg">
                 Browser Anda tidak mendukung elemen audio.
             </audio>
+            <button id="btn-mute" onclick="toggleMute()" style="background:#607D8B; margin-top:8px; width:100%; max-width:300px;">
+                🔊 Suara: ON
+            </button>
         </div>
 
         <div>
@@ -213,6 +223,7 @@
         let firstCard, secondCard;
         let lockBoard = false;
         let isGamePaused = false;
+        let isMuted = false;
         let gameMode = 'P1_VS_COM';
         let difficulty = 'mudah'; 
         
@@ -238,6 +249,34 @@
         let highScore = localStorage.getItem('memory_high_score') || 0;
         document.getElementById('high-score').innerText = highScore;
 
+        // --- FUNGSI MODAL ---
+        function showModal(title, message) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('game-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('game-modal').style.display = 'none';
+        }
+
+        // --- FUNGSI MUTE / UNMUTE ---
+        function toggleMute() {
+            isMuted = !isMuted;
+            bgMusic.muted = isMuted;
+            flipSfx.muted = isMuted;
+            matchSfx.muted = isMuted;
+
+            const muteBtn = document.getElementById('btn-mute');
+            if (isMuted) {
+                muteBtn.innerText = "🔇 Suara: OFF";
+                muteBtn.style.background = "#f44336";
+            } else {
+                muteBtn.innerText = "🔊 Suara: ON";
+                muteBtn.style.background = "#607D8B";
+            }
+        }
+
         function setDifficulty(diff) {
             difficulty = diff;
             document.querySelectorAll('.btn-diff').forEach(btn => btn.classList.remove('active'));
@@ -259,7 +298,7 @@
             resetScores();
             setupLevel();
             
-            if (bgMusic) {
+            if (bgMusic && !isMuted) {
                 bgMusic.play().catch(() => {});
             }
 
@@ -314,8 +353,10 @@
             if (this === firstCard) return;
 
             // Bunyi SFX balik kartu
-            flipSfx.currentTime = 0;
-            flipSfx.play().catch(() => {});
+            if (!isMuted) {
+                flipSfx.currentTime = 0;
+                flipSfx.play().catch(() => {});
+            }
 
             this.classList.add('flipped');
 
@@ -333,8 +374,10 @@
 
             if (isMatch) {
                 // Bunyi SFX jika kartu cocok
-                matchSfx.currentTime = 0;
-                matchSfx.play().catch(() => {});
+                if (!isMuted) {
+                    matchSfx.currentTime = 0;
+                    matchSfx.play().catch(() => {});
+                }
 
                 disableCards();
                 updateScore();
@@ -445,12 +488,10 @@
                     document.getElementById('time').innerText = timeLeft;
                     if (timeLeft <= 0) {
                         clearInterval(timerInterval);
-                        showNotification("Waktu Habis! Game Over.");
                         lockBoard = true;
                         
-                        // PERBAIKAN: Tutup otomatis kartu yang terbuka saat Game Over
+                        // Tutup otomatis kartu yang terbuka saat Game Over
                         document.querySelectorAll('.card.flipped').forEach(card => {
-                            // Jangan tutup kartu yang sudah cocok
                             if (card.getAttribute('style') === null || !card.getAttribute('style').includes('pointer-events')) {
                                 card.classList.remove('flipped');
                             }
@@ -458,6 +499,9 @@
                         resetBoard();
 
                         if (bgMusic) bgMusic.pause();
+
+                        // POP-UP MODAL GAME OVER
+                        showModal('💀 Game Over!', `Waktu kamu sudah habis di Level ${level}.\n\nSkor Akhir P1: ${score1}\nSkor Lawan: ${score2}`);
                     }
                 }
             }, 1000);
@@ -473,7 +517,7 @@
             } else {
                 pauseBtn.innerText = "Pause Game";
                 showNotification("Game Dilanjutkan!");
-                if (bgMusic) bgMusic.play().catch(() => {});
+                if (bgMusic && !isMuted) bgMusic.play().catch(() => {});
 
                 if (gameMode === 'P1_VS_COM' && currentPlayer === 2) {
                     setTimeout(aiTurn, 1000);
@@ -513,7 +557,14 @@
                 origin: { y: 0.6 }
             });
 
-            showNotification(`Level ${level} Selesai! Memuat level berikutnya...`);
+            let winMsg = `Selamat! Kamu berhasil menyelesaikan Level ${level}.\nSkor P1: ${score1}`;
+            if (gameMode !== 'P1_VS_COM') {
+                winMsg += ` | Skor P2: ${score2}`;
+            }
+
+            // POP-UP MODAL KEMENANGAN
+            showModal(`🎉 Level ${level} Selesai!`, winMsg);
+
             level++;
             document.getElementById('level').innerText = level;
             setTimeout(setupLevel, 2500);
